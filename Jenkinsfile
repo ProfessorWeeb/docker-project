@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        ImageRegistry = 'oluwaseuna'
+        ImageRegistry = 'professorweeb'
         EC2_IP = '54.171.233.251'
         DockerComposeFile = 'docker-compose.yml'
         DotEnvFile = '.env'
@@ -14,7 +14,7 @@ pipeline {
             steps {
                 script {
                     echo "Building Docker Image..."
-                    sh "docker build -t ${ImageRegistry}/${JOB_NAME}:${BUILD_NUMBER} ."
+                    bat "\"C:\\Users\\Danie_000\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe\" build -t ${ImageRegistry}/${JOB_NAME}:${BUILD_NUMBER} ."
                 }
             }
         }
