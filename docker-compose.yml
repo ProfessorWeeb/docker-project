@@ -1,10 +1,10 @@
 services:
   # PHP Application
   php-app:
-    image: oluwaseuna/docker:1
+    image: professorweeb/a6-contactform:latest
     container_name: php-app
     ports:
-      - "80:80"  # Expose port 80 on the container to port 8080 on localhost
+      - "80:80"
     environment:
       DB_HOST: db
       DB_NAME: ${MYSQL_DATABASE}
@@ -34,7 +34,7 @@ services:
     container_name: phpmyadmin
     restart: always
     ports:
-      - "8081:80"  # Expose phpMyAdmin on port 8081
+      - "8081:80"
     environment:
       PMA_HOST: db
       PMA_PORT: 3306
