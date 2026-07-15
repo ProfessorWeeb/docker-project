@@ -3,48 +3,85 @@ pipeline {
 
     environment {
         ImageRegistry = 'professorweeb'
-        EC2_IP = '54.171.233.251'
+        ImageName = 'a6-contactform'
+
+        DockerExe = 'C:\\Users\\Danie_000\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe'
+
+        // Replace this after creating your EC2 instance.
+        EC2_IP = 'REPLACE_WITH_YOUR_EC2_PUBLIC_IP'
+
         DockerComposeFile = 'docker-compose.yml'
         DotEnvFile = '.env'
     }
 
     stages {
-
-        stage("buildImage") {
+        stage('buildImage') {
             steps {
                 script {
-                    echo "Building Docker Image..."
-                    bat "\"C:\\Users\\Danie_000\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe\" build -t ${ImageRegistry}/${JOB_NAME}:${BUILD_NUMBER} ."
+                    echo 'Building Docker image...'
+
+                    bat '''
+                    "%DockerExe%" build ^
+                    -t %ImageRegistry%/%ImageName%:%BUILD_NUMBER% ^
+                    -t %ImageRegistry%/%ImageName%:latest .
+                    '''
                 }
             }
         }
 
-        stage("pushImage") {
+        stage('pushImage') {
             steps {
                 script {
-                    echo "Pushing Image to DockerHub..."
-                    withCredentials([usernamePassword(credentialsId: 'docker-login', passwordVariable: 'PASS', usernameVariable: 'USER')]) {
-                        sh "echo $PASS | docker login -u $USER --password-stdin"
-                        sh "docker push ${ImageRegistry}/${JOB_NAME}:${BUILD_NUMBER}"
+                    echo 'Pushing image to Docker Hub...'
+
+                    withCredentials([
+                        usernamePassword(
+                            credentialsId: 'docker-login',
+                            usernameVariable: 'DOCKER_USER',
+                            passwordVariable: 'DOCKER_PASS'
+                        )
+                    ]) {
+                        bat '''
+                        echo %DOCKER_PASS% | "%DockerExe%" login -u %DOCKER_USER% --password-stdin
+
+                        "%DockerExe%" push %ImageRegistry%/%ImageName%:%BUILD_NUMBER%
+                        "%DockerExe%" push %ImageRegistry%/%ImageName%:latest
+
+                        "%DockerExe%" logout
+                        '''
                     }
                 }
             }
         }
 
-        stage("deployCompose") {
+        stage('deployCompose') {
             steps {
                 script {
-                    echo "Deploying with Docker Compose..."
-                    sshagent(['ec2']) {
-                        // Upload files once to reduce redundant SCP commands
-                        sh """
-                        scp -o StrictHostKeyChecking=no ${DotEnvFile} ${DockerComposeFile} ubuntu@${EC2_IP}:/home/ubuntu
-                        ssh -o StrictHostKeyChecking=no ubuntu@${EC2_IP} "docker compose -f /home/ubuntu/${DockerComposeFile} --env-file /home/ubuntu/${DotEnvFile} down"
-                        ssh -o StrictHostKeyChecking=no ubuntu@${EC2_IP} "docker compose -f /home/ubuntu/${DockerComposeFile} --env-file /home/ubuntu/${DotEnvFile} up -d"
-                        """
+                    echo 'Deploying with Docker Compose...'
+
+                    sshagent(credentials: ['ec2']) {
+                        bat '''
+                        scp -o StrictHostKeyChecking=no "%DotEnvFile%" "%DockerComposeFile%" ubuntu@%EC2_IP%:/home/ubuntu/
+
+                        ssh -o StrictHostKeyChecking=no ubuntu@%EC2_IP% "docker compose -f /home/ubuntu/%DockerComposeFile% --env-file /home/ubuntu/%DotEnvFile% down"
+
+                        ssh -o StrictHostKeyChecking=no ubuntu@%EC2_IP% "docker compose -f /home/ubuntu/%DockerComposeFile% --env-file /home/ubuntu/%DotEnvFile% pull"
+
+                        ssh -o StrictHostKeyChecking=no ubuntu@%EC2_IP% "docker compose -f /home/ubuntu/%DockerComposeFile% --env-file /home/ubuntu/%DotEnvFile% up -d"
+                        '''
                     }
                 }
             }
+        }
+    }
+
+    post {
+        success {
+            echo 'The image was built, pushed, and deployed successfully.'
+        }
+
+        failure {
+            echo 'The pipeline failed. Check the Console Output for the first error.'
         }
     }
 }
