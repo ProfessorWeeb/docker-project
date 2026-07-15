@@ -36,7 +36,7 @@ pipeline {
 
                     withCredentials([
                         usernamePassword(
-                            credentialsId: 'docker-login',
+                            credentialsId: 'docker-loggingin',
                             usernameVariable: 'DOCKER_USER',
                             passwordVariable: 'DOCKER_PASS'
                         )
